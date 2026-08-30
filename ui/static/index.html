@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corrective RAG Agent | LangGraph + NVIDIA NIM</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="theme-dark">
+
+  <!-- ========================================================================= -->
+  <!-- Application Container -->
+  <!-- ========================================================================= -->
+  <div class="app-layout">
+    
+    <!-- ========================================================================= -->
+    <!-- Sidebar: Configuration Panel -->
+    <!-- ========================================================================= -->
+    <aside class="app-sidebar" id="appSidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          <i class="fa-solid fa-sliders text-accent"></i>
+          <span>Configuration</span>
+        </div>
+        <button class="icon-button sidebar-close-btn" id="sidebarCloseBtn" title="Close sidebar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- API Credentials -->
+        <section class="config-section">
+          <div class="section-title">
+            <i class="fa-solid fa-key"></i>
+            <span>API Credentials</span>
+          </div>
+          
+          <div class="form-group">
+            <label for="nvidiaApiKey">
+              NVIDIA API Key <span class="required">*</span>
+              <span class="tooltip-icon" title="Required. Starts with nvapi-..."><i class="fa-solid fa-circle-question"></i></span>
+            </label>
+            <div class="input-password-wrapper">
+              <input type="password" id="nvidiaApiKey" placeholder="nvapi-..." autocomplete="off">
+              <button type="button" class="btn-toggle-pw" data-target="nvidiaApiKey">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+            <span class="input-hint">Used for NVIDIA NIM Chat & Embeddings</span>
+          </div>
+
+          <div class="form-group">
+            <label for="tavilyApiKey">
+              Tavily API Key
+              <span class="tooltip-icon" title="Required for web search fallback when documents are insufficient"><i class="fa-solid fa-circle-question"></i></span>
+            </label>
+            <div class="input-password-wrapper">
+              <input type="password" id="tavilyApiKey" placeholder="tvly-..." autocomplete="off">
+              <button type="button" class="btn-toggle-pw" data-target="tavilyApiKey">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+            <span class="input-hint">Enables online web search fallback</span>
+          </div>
+        </section>
+
+        <!-- Vector Database -->
+        <section class="config-section">
+          <div class="section-title">
+            <i class="fa-solid fa-database"></i>
+            <span>Vector Database (Qdrant)</span>
+          </div>
+
+          <div class="form-group">
+            <label for="qdrantUrl">Qdrant Server URL</label>
+            <input type="text" id="qdrantUrl" placeholder="http://localhost:6333">
+          </div>
+
+          <div class="form-group">
+            <label for="qdrantApiKey">Qdrant API Key (Optional)</label>
+            <div class="input-password-wrapper">
+              <input type="password" id="qdrantApiKey" placeholder="Optional for cloud cluster" autocomplete="off">
+              <button type="button" class="btn-toggle-pw" data-target="qdrantApiKey">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- NVIDIA Models -->
+        <section class="config-section">
+          <div class="section-title">
+            <i class="fa-solid fa-brain"></i>
+            <span>NVIDIA NIM Models</span>
+          </div>
+
+          <div class="form-group">
+            <label for="chatModelSelect">Chat LLM</label>
+            <select id="chatModelSelect" class="form-select">
+              <option value="meta/llama-3.1-70b-instruct">meta/llama-3.1-70b-instruct</option>
+              <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct</option>
+              <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct</option>
+              <option value="meta/llama-3.1-8b-instruct">meta/llama-3.1-8b-instruct</option>
+              <option value="mistralai/mixtral-8x7b-instruct-v0.1">mistralai/mixtral-8x7b-instruct-v0.1</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="embedModelSelect">Embedding Model</label>
+            <select id="embedModelSelect" class="form-select">
+              <option value="nvidia/nv-embedqa-e5-v5">nvidia/nv-embedqa-e5-v5</option>
+              <option value="baai/bge-m3">baai/bge-m3</option>
+              <option value="snowflake/arctic-embed-l">snowflake/arctic-embed-l</option>
+              <option value="nvidia/llama-3.2-nv-embedqa-1b-v2">nvidia/llama-3.2-nv-embedqa-1b-v2</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- Chunking Settings -->
+        <section class="config-section">
+          <div class="section-title">
+            <i class="fa-solid fa-scissors"></i>
+            <span>Chunking Strategy</span>
+          </div>
+
+          <div class="form-group">
+            <div class="range-header">
+              <label for="chunkSize">Chunk Size</label>
+              <span class="range-val" id="chunkSizeVal">500</span>
+            </div>
+            <input type="range" id="chunkSize" min="100" max="2000" step="50" value="500">
+          </div>
+
+          <div class="form-group">
+            <div class="range-header">
+              <label for="chunkOverlap">Chunk Overlap</label>
+              <span class="range-val" id="chunkOverlapVal">100</span>
+            </div>
+            <input type="range" id="chunkOverlap" min="0" max="500" step="25" value="100">
+          </div>
+        </section>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-primary btn-block" id="saveConfigBtn">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Save Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Sidebar Backdrop for Mobile -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- ========================================================================= -->
+    <!-- Main Application Area -->
+    <!-- ========================================================================= -->
+    <div class="app-main">
+      
+      <!-- Top Navbar -->
+      <header class="app-header">
+        <div class="header-left">
+          <button class="icon-button" id="sidebarToggleBtn" title="Toggle Configuration Sidebar">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="brand">
+            <div class="brand-icon">
+              <i class="fa-solid fa-arrows-rotate fa-spin-pulse"></i>
+            </div>
+            <div class="brand-info">
+              <h1>Corrective RAG Agent</h1>
+              <p class="subtitle">LangGraph • NVIDIA NIM • Qdrant Vector Search</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <!-- Active Document Badge -->
+          <div class="status-pill doc-pill" id="activeDocBadge" title="Current indexed source">
+            <i class="fa-solid fa-file-lines"></i>
+            <span id="activeDocText">No document indexed</span>
+          </div>
+
+          <!-- Connection Status Pill -->
+          <div class="status-pill status-ready" id="systemStatusPill">
+            <span class="status-dot"></span>
+            <span id="systemStatusText">Ready</span>
+          </div>
+
+          <!-- Theme Toggle -->
+          <button class="icon-button" id="themeToggleBtn" title="Toggle Dark/Light Mode">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Global API Key Warning Banner (if missing) -->
+      <div class="warning-banner" id="apiKeyWarningBanner" style="display: none;">
+        <div class="banner-content">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>NVIDIA API Key is required. Please configure it in the sidebar to ingest documents and run queries.</span>
+        </div>
+        <button class="btn btn-sm btn-warning" id="openSettingsBtn">
+          <i class="fa-solid fa-gear"></i> Open Settings
+        </button>
+      </div>
+
+      <!-- Main Scrollable Content -->
+      <main class="main-content">
+        <div class="content-container">
+
+          <!-- ================================================================= -->
+          <!-- 1. Document Ingestion Card -->
+          <!-- ================================================================= -->
+          <section class="card glass-card ingestion-card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="step-badge">1</span>
+                <div>
+                  <h2>Document Ingestion</h2>
+                  <p class="card-subtitle">Load and index documents into Qdrant vector database</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <!-- Source Selection Tabs -->
+              <div class="tab-group" role="tablist">
+                <button class="tab-button active" data-tab="urlTab" role="tab">
+                  <i class="fa-solid fa-globe"></i>
+                  <span>Document URL</span>
+                </button>
+                <button class="tab-button" data-tab="fileTab" role="tab">
+                  <i class="fa-solid fa-file-arrow-up"></i>
+                  <span>File Upload</span>
+                </button>
+              </div>
+
+              <!-- Tab 1: URL Ingestion -->
+              <div class="tab-pane active" id="urlTab">
+                <div class="input-with-action">
+                  <div class="input-icon-wrapper">
+                    <i class="fa-solid fa-link input-icon"></i>
+                    <input type="url" id="docUrlInput" placeholder="https://arxiv.org/pdf/2307.09288.pdf" value="https://arxiv.org/pdf/2307.09288.pdf">
+                  </div>
+                  <button class="btn btn-primary" id="ingestUrlBtn">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Ingest URL</span>
+                  </button>
+                </div>
+                <div class="sample-links">
+                  <span class="sample-label">Examples:</span>
+                  <button type="button" class="chip-sample" data-url="https://arxiv.org/pdf/2307.09288.pdf">
+                    📄 Llama 2 Paper (ArXiv)
+                  </button>
+                  <button type="button" class="chip-sample" data-url="https://arxiv.org/pdf/2401.15884.pdf">
+                    📄 Corrective RAG Paper (ArXiv)
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tab 2: File Upload Ingestion -->
+              <div class="tab-pane" id="fileTab">
+                <div class="dropzone" id="fileDropzone">
+                  <input type="file" id="fileInput" accept=".pdf,.txt,.md" style="display: none;">
+                  <div class="dropzone-content">
+                    <div class="dropzone-icon">
+                      <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <p class="dropzone-text"><strong>Click to browse</strong> or drag & drop file here</p>
+                    <p class="dropzone-hint">Supported formats: PDF (.pdf), Text (.txt), Markdown (.md)</p>
+                  </div>
+                </div>
+
+                <div class="selected-file-preview" id="selectedFilePreview" style="display: none;">
+                  <div class="file-info">
+                    <i class="fa-solid fa-file-pdf file-icon" id="fileTypeIcon"></i>
+                    <div>
+                      <span class="file-name" id="selectedFileName">document.pdf</span>
+                      <span class="file-size" id="selectedFileSize">0 KB</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary" id="ingestFileBtn">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Ingest File</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ingestion Feedback Alert Box -->
+              <div class="ingestion-result-box" id="ingestionResultBox" style="display: none;">
+                <div class="result-header">
+                  <div class="result-status" id="ingestStatusText">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Successfully Indexed</span>
+                  </div>
+                  <button class="icon-button close-result-btn" id="closeResultBtn">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <div class="metrics-grid" id="ingestMetricsGrid">
+                  <div class="metric-item">
+                    <span class="metric-label">Source</span>
+                    <span class="metric-value" id="metricSource">-</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">Pages Loaded</span>
+                    <span class="metric-value highlight" id="metricDocCount">0</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">Chunks Created</span>
+                    <span class="metric-value highlight" id="metricChunkCount">0</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">Vector Dimension</span>
+                    <span class="metric-value" id="metricVectorDim">0</span>
+                  </div>
+                  <div class="metric-item">
+                    <span class="metric-label">Collection</span>
+                    <span class="metric-value" id="metricCollection">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+
+          <!-- ================================================================= -->
+          <!-- 2. Question & Corrective RAG Workflow Execution -->
+          <!-- ================================================================= -->
+          <section class="card glass-card query-card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="step-badge">2</span>
+                <div>
+                  <h2>Ask Questions & Observe CRAG Flow</h2>
+                  <p class="card-subtitle">Self-correcting LangGraph pipeline with document grading & web search fallback</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <!-- Query Input Bar -->
+              <div class="query-input-wrapper">
+                <div class="input-icon-wrapper flex-grow">
+                  <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                  <input type="text" id="queryInput" placeholder="Ask anything about the ingested document (e.g., What are the ablation studies and benchmark scores?)...">
+                </div>
+                <button class="btn btn-gradient" id="submitQueryBtn">
+                  <i class="fa-solid fa-paper-plane"></i>
+                  <span>Execute CRAG</span>
+                </button>
+              </div>
+
+              <!-- Suggested Query Chips -->
+              <div class="suggested-queries">
+                <span class="chip-title"><i class="fa-regular fa-lightbulb"></i> Suggested:</span>
+                <button class="query-chip" data-query="What are the fine-tuning methods and RLHF details in this paper?">
+                  Fine-tuning & RLHF methods
+                </button>
+                <button class="query-chip" data-query="What are the key benchmark results and ablation studies?">
+                  Benchmark & Ablation studies
+                </button>
+                <button class="query-chip" data-query="What is the safety evaluation process?">
+                  Safety evaluation
+                </button>
+                <button class="query-chip" data-query="Who is the current CEO of Microsoft in 2026?">
+                  Trigger Web Search (Out-of-doc query)
+                </button>
+              </div>
+
+              <!-- Visual Stepper Pipeline -->
+              <div class="pipeline-section" id="pipelineSection">
+                <div class="section-divider-title">
+                  <span>LangGraph Agent Execution Pipeline</span>
+                </div>
+
+                <div class="pipeline-stepper" id="pipelineStepper">
+                  <!-- Step 1: Retrieve -->
+                  <div class="stepper-node" id="step-retrieve" data-node="retrieve">
+                    <div class="node-icon"><i class="fa-solid fa-database"></i></div>
+                    <div class="node-info">
+                      <span class="node-name">Retrieve</span>
+                      <span class="node-desc">Qdrant Vector Search</span>
+                    </div>
+                    <div class="node-badge" id="badge-retrieve">Pending</div>
+                  </div>
+
+                  <div class="stepper-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+
+                  <!-- Step 2: Grade -->
+                  <div class="stepper-node" id="step-grade_documents" data-node="grade_documents">
+                    <div class="node-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <div class="node-info">
+                      <span class="node-name">Grade Documents</span>
+                      <span class="node-desc">Relevance Evaluation</span>
+                    </div>
+                    <div class="node-badge" id="badge-grade_documents">Pending</div>
+                  </div>
+
+                  <div class="stepper-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+
+                  <!-- Step 3: Transform Query (Conditional) -->
+                  <div class="stepper-node" id="step-transform_query" data-node="transform_query">
+                    <div class="node-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <div class="node-info">
+                      <span class="node-name">Transform Query</span>
+                      <span class="node-desc">Search Optimization</span>
+                    </div>
+                    <div class="node-badge" id="badge-transform_query">Conditional</div>
+                  </div>
+
+                  <div class="stepper-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+
+                  <!-- Step 4: Web Search (Conditional) -->
+                  <div class="stepper-node" id="step-web_search" data-node="web_search">
+                    <div class="node-icon"><i class="fa-solid fa-earth-americas"></i></div>
+                    <div class="node-info">
+                      <span class="node-name">Web Search</span>
+                      <span class="node-desc">Tavily Live Fallback</span>
+                    </div>
+                    <div class="node-badge" id="badge-web_search">Conditional</div>
+                  </div>
+
+                  <div class="stepper-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+
+                  <!-- Step 5: Generate -->
+                  <div class="stepper-node" id="step-generate" data-node="generate">
+                    <div class="node-icon"><i class="fa-solid fa-sparkles"></i></div>
+                    <div class="node-info">
+                      <span class="node-name">Generate</span>
+                      <span class="node-desc">NVIDIA LLM Answer</span>
+                    </div>
+                    <div class="node-badge" id="badge-generate">Pending</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Node Step Execution Log / Accordion Cards -->
+              <div class="execution-log" id="executionLog">
+                <div class="empty-state" id="emptyLogState">
+                  <i class="fa-solid fa-diagram-project empty-icon"></i>
+                  <p>Submit a query to observe the real-time self-corrective LangGraph execution flow.</p>
+                </div>
+                <!-- Dynamic Step Accordions will be inserted here by JavaScript -->
+              </div>
+
+              <!-- Final Answer Section -->
+              <div class="final-answer-container" id="finalAnswerContainer" style="display: none;">
+                <div class="answer-card glass-card">
+                  <div class="answer-header">
+                    <div class="answer-title">
+                      <i class="fa-solid fa-circle-check text-success"></i>
+                      <span>🎯 Final Answer</span>
+                    </div>
+                    <div class="answer-actions">
+                      <button class="btn btn-sm btn-outline" id="copyAnswerBtn" title="Copy answer to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="markdown-body" id="answerMarkdownBody">
+                    <!-- Answer parsed into rich HTML by marked.js -->
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+        </div>
+      </main>
+
+      <!-- App Footer -->
+      <footer class="app-footer">
+        <div class="footer-content">
+          <span>Corrective RAG (CRAG) Agent Architecture • Powered by <strong>LangGraph</strong> & <strong>NVIDIA NIM</strong></span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Script -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

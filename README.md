@@ -1,6 +1,6 @@
 # 🔄 Corrective RAG (CRAG) Agent - Industry-Grade Architecture
 
-An enterprise-grade, modular **Corrective Retrieval-Augmented Generation (CRAG)** agent built with **LangGraph**, **NVIDIA NIM Models**, **NVIDIA Embeddings**, and **Qdrant Vector Database**.
+An enterprise-grade, modular **Corrective Retrieval-Augmented Generation (CRAG)** agent built with **LangGraph**, **NVIDIA NIM Models**, **NVIDIA Embeddings**, and **Qdrant Vector Database**, featuring a modern **HTML5, CSS3, and JavaScript** web user interface powered by a **FastAPI** backend.
 
 ---
 
@@ -64,16 +64,22 @@ Corrective_rag/
 │   └── service.py               # Unified CRAGService facade
 ├── ui/
 │   ├── __init__.py
-│   ├── components.py            # Streamlit UI widgets, sidebar & state formatters
-│   └── app.py                   # Streamlit web interface application
+│   ├── server.py                # FastAPI REST & SSE streaming server
+│   └── static/                  # Modern Web Frontend (HTML5, CSS3, JS)
+│       ├── index.html           # Semantic responsive Single Page Application
+│       ├── css/
+│       │   └── styles.css       # Custom design system with glassmorphism & dark mode
+│       └── js/
+│           └── app.js           # Interactive state, SSE streaming, drag-and-drop & markdown
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py              # Pytest fixtures & sample documents
+│   ├── test_api.py              # FastAPI endpoints & static file serving tests
 │   ├── test_config.py           # Configuration unit tests
 │   ├── test_schemas.py          # Pydantic schema validation tests
 │   ├── test_graph.py            # StateGraph routing & node execution tests
 │   └── test_ingestion.py        # Chunking & ingestion tests
-├── app.py                       # Main Streamlit web application launcher
+├── app.py                       # Main web server launcher (FastAPI + Uvicorn)
 ├── main.py                      # CLI tool for terminal & automated queries
 ├── corrective_rag.py            # Backward-compatible entrypoint
 ├── .env.example                 # Configuration environment template
@@ -112,16 +118,34 @@ NVIDIA_EMBEDDING_MODEL=nvidia/nv-embedqa-e5-v5
 
 ## 🚀 Running the Application
 
-### Option A: Streamlit Interactive Web UI
+### Option A: Modern Web UI (HTML5 / CSS3 / JavaScript)
+
+Launch the web application:
 
 ```bash
-streamlit run app.py
+python app.py
 ```
+Or with Uvicorn:
+```bash
+uvicorn ui.server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Open your browser and navigate to: **`http://localhost:8000`**
+
+#### Key Frontend Features:
+- **Configuration Drawer**: Manage NVIDIA / Tavily API keys, Qdrant cluster URLs, model selections, and chunking parameters in real time.
+- **Document Ingestion Hub**: Index documents by entering remote URLs (PDF, web articles) or dragging and dropping local `.pdf`, `.txt`, and `.md` files.
+- **Visual LangGraph Pipeline Stepper**: Interactive visual execution graph tracking `Retrieve` ➔ `Grade Documents` ➔ `Transform Query` ➔ `Web Search` ➔ `Generate` in real time via Server-Sent Events (SSE).
+- **Inspectable State Accordions**: Expand each execution node to view retrieved chunks, relevance grading metrics, query rewrites, and raw state JSON.
+- **Rich Markdown Final Answer**: Formatted output with code blocks, tables, lists, and one-click copy to clipboard.
+- **Dark / Light Theme Toggle**: Sleek glassmorphic theme with persistent preference.
+
+---
 
 ### Option B: CLI Terminal Interface
 
 ```bash
-# Ingest a document and query directly
+# Ingest a document and query directly from the terminal
 python main.py --url "https://arxiv.org/pdf/2307.09288.pdf" --query "What are the fine-tuning methods used in Llama 2?"
 ```
 
@@ -129,7 +153,7 @@ python main.py --url "https://arxiv.org/pdf/2307.09288.pdf" --query "What are th
 
 ## 🧪 Running Unit Tests
 
-Run the test suite with pytest:
+Run the full pytest suite (including unit tests for core modules, LangGraph flow, and FastAPI endpoints):
 
 ```bash
 pytest tests/ -v
