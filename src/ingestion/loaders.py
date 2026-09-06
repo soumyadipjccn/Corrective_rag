@@ -31,7 +31,7 @@ class DocumentLoaderService:
         logger.info(f"Loading document from URL: {url}")
         try:
             parsed_path = urlparse(url).path.lower()
-            if parsed_path.endswith(".pdf"):
+            if parsed_path.endswith(".pdf") or "/pdf/" in parsed_path or "arxiv.org/pdf/" in url.lower():
                 logger.info("URL identified as remote PDF. Using PyPDFLoader.")
                 loader = PyPDFLoader(url)
             else:
