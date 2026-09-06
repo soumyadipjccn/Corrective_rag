@@ -47,13 +47,24 @@ class Settings(BaseSettings):
     @property
     def is_voyage_embedding(self) -> bool:
         """Check if active embedding model or provider is Voyage AI."""
+        if "voyage" in self.nvidia_embedding_model.lower():
+            return True
         if self.embedding_provider.lower() == "voyage":
             return True
-        if self.embedding_provider.lower() == "nvidia":
+        return False
+
+    @property
+    def is_fastembed_embedding(self) -> bool:
+        """Check if active embedding provider or model is FastEmbed (local)."""
+        if self.is_voyage_embedding:
             return False
-        # Auto-detect from model name
+        if "nvidia" in self.nvidia_embedding_model.lower() or "nemotron" in self.nvidia_embedding_model.lower():
+            if self.embedding_provider.lower() not in ("fastembed", "local"):
+                return False
+        if self.embedding_provider.lower() in ("fastembed", "local"):
+            return True
         model_lower = self.nvidia_embedding_model.lower()
-        return "voyage" in model_lower
+        return "fastembed" in model_lower or "bge-small" in model_lower or "bge-base" in model_lower
 
     @property
     def effective_chat_api_key(self) -> str:
@@ -63,6 +74,8 @@ class Settings(BaseSettings):
     @property
     def effective_embedding_api_key(self) -> str:
         """Return the appropriate embedding API key based on selected embedding provider/model."""
+        if self.is_fastembed_embedding:
+            return "local-fastembed"
         if self.is_voyage_embedding:
             if self.voyage_api_key.strip():
                 return self.voyage_api_key.strip()
@@ -91,17 +104,22 @@ class Settings(BaseSettings):
     nvidia_embedding_model: str = Field(
         default="nvidia/nv-embedqa-e5-v5",
         validation_alias="NVIDIA_EMBEDDING_MODEL",
-        description="Default embedding model ID (NVIDIA NIM or Voyage AI)"
+        description="Default embedding model ID (FastEmbed, NVIDIA NIM, or Voyage AI)"
     )
     voyage_embedding_model: str = Field(
         default="voyage-3",
         validation_alias="VOYAGE_EMBEDDING_MODEL",
         description="Default Voyage AI embedding model ID"
     )
+    fastembed_model: str = Field(
+        default="BAAI/bge-small-en-v1.5",
+        validation_alias="FASTEMBED_MODEL",
+        description="Default FastEmbed local embedding model ID"
+    )
     embedding_provider: str = Field(
         default="auto",
         validation_alias="EMBEDDING_PROVIDER",
-        description="Embedding provider: 'auto', 'nvidia', or 'voyage'"
+        description="Embedding provider: 'auto', 'fastembed', 'nvidia', or 'voyage'"
     )
 
     # Ingestion & Splitting Config
@@ -130,6 +148,10 @@ class Settings(BaseSettings):
         "qwen/qwen2.5-72b-instruct",
     ]
     available_embedding_models: List[str] = [
+        "BAAI/bge-small-en-v1.5",
+        "BAAI/bge-base-en-v1.5",
+        "nvidia/nemotron-3-embed-1b",
+        "nvidia/llama-nemotron-embed-vl-1b-v2",
         "nvidia/nv-embedqa-e5-v5",
         "baai/bge-m3",
         "snowflake/arctic-embed-l",

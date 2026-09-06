@@ -114,11 +114,19 @@ QDRANT_URL=http://localhost:6333
 # Chat Model (NVIDIA NIM)
 NVIDIA_CHAT_MODEL=meta/llama-3.1-70b-instruct
 
-# Embedding Model (Voyage AI or NVIDIA NIM)
-# For Voyage AI:
-VOYAGE_API_KEY=pa-your-voyage-api-key-here
-NVIDIA_EMBEDDING_MODEL=voyage-3
-# Supported Voyage models: voyage-3, voyage-3-lite, voyage-code-3, voyage-finance-2, voyage-law-2, voyage-multilingual-2
+# Embedding Provider (FastEmbed Local, NVIDIA NIM, or Voyage AI)
+# Option 1: FastEmbed (100% free, local, no API keys or rate limits)
+EMBEDDING_PROVIDER=fastembed
+NVIDIA_EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+
+# Option 2: NVIDIA NIM (Cloud)
+# EMBEDDING_PROVIDER=nvidia
+# NVIDIA_EMBEDDING_MODEL=nvidia/nemotron-3-embed-1b
+
+# Option 3: Voyage AI (Cloud)
+# EMBEDDING_PROVIDER=voyage
+# VOYAGE_API_KEY=pa-your-voyage-api-key-here
+# NVIDIA_EMBEDDING_MODEL=voyage-3
 ```
 
 ---

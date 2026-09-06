@@ -72,9 +72,31 @@ def test_voyage_factory_instantiation():
     assert emb.model == "voyage-3-lite"
 
 
+def test_fastembed_settings_and_factory():
+    from src.llm.client import NVIDIAClientFactory
+    from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+
+    # Auto-detection via model name
+    s1 = Settings(_env_file=None, nvidia_embedding_model="BAAI/bge-small-en-v1.5")
+    assert s1.is_fastembed_embedding is True
+    assert s1.effective_embedding_api_key == "local-fastembed"
+
+    # Explicit provider selection
+    s2 = Settings(_env_file=None, embedding_provider="fastembed")
+    assert s2.is_fastembed_embedding is True
+    assert s2.effective_embedding_api_key == "local-fastembed"
+
+    # Factory instantiation
+    factory = NVIDIAClientFactory(s1)
+    emb = factory.get_embedding_model()
+    assert isinstance(emb, FastEmbedEmbeddings)
+    assert emb.model_name == "BAAI/bge-small-en-v1.5"
+
+
 def test_get_settings_caching():
     s1 = get_settings()
     s2 = get_settings()
     assert s1 is s2
+
 
 

@@ -6,6 +6,7 @@ from typing import Optional, Union
 from langchain_core.embeddings import Embeddings
 from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings
 from langchain_voyageai import VoyageAIEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from src.config.settings import Settings, get_settings
 from src.utils.logger import get_logger
 
@@ -13,7 +14,7 @@ logger = get_logger("ModelClientFactory")
 
 
 class NVIDIAClientFactory:
-    """Factory for instantiating Chat LLMs and Embedding clients (NVIDIA & Voyage AI)."""
+    """Factory for instantiating Chat LLMs and Embedding clients (FastEmbed, NVIDIA & Voyage AI)."""
 
     def __init__(self, settings: Optional[Settings] = None):
         self.settings = settings or get_settings()
@@ -49,6 +50,25 @@ class NVIDIAClientFactory:
             temperature=temp,
             max_tokens=tokens,
         )
+
+    def get_fastembed_embeddings(
+        self,
+        model_name: Optional[str] = None,
+    ) -> FastEmbedEmbeddings:
+        """
+        Instantiate and return a FastEmbedEmbeddings instance running locally.
+
+        Args:
+            model_name: Name of the FastEmbed model (e.g. BAAI/bge-small-en-v1.5).
+
+        Returns:
+            Configured FastEmbedEmbeddings instance.
+        """
+        model = model_name or getattr(self.settings, "fastembed_model", "BAAI/bge-small-en-v1.5")
+        if "fastembed:" in model.lower():
+            model = model.split(":", 1)[1]
+        logger.info(f"Initializing FastEmbed local embeddings model: {model} (local, no API key required)")
+        return FastEmbedEmbeddings(model_name=model)
 
     def get_voyage_embeddings(
         self,
@@ -106,23 +126,32 @@ class NVIDIAClientFactory:
         truncate: str = "END",
     ) -> Embeddings:
         """
-        Instantiate and return an Embeddings instance (auto-routes to Voyage AI or NVIDIA).
+        Instantiate and return an Embeddings instance (auto-routes to FastEmbed, Voyage AI, or NVIDIA).
 
         Args:
-            model_name: Name of the embedding model (e.g. voyage-3 or nvidia/nv-embedqa-e5-v5).
-            api_key: API Key for the respective provider.
+            model_name: Name of the embedding model (e.g. BAAI/bge-small-en-v1.5, voyage-3, or nvidia/nemotron-3-embed-1b).
+            api_key: API Key for the respective provider (not required for FastEmbed).
             truncate: Truncation strategy for NVIDIA models.
 
         Returns:
             Configured Embeddings instance.
         """
         if model_name:
-            is_voyage = "voyage" in model_name.lower() or self.settings.embedding_provider.lower() == "voyage"
+            target_lower = model_name.lower()
+            if "fastembed" in target_lower or "bge-small" in target_lower or "bge-base" in target_lower:
+                return self.get_fastembed_embeddings(model_name=model_name)
+            is_voyage = "voyage" in target_lower or self.settings.embedding_provider.lower() == "voyage"
             if is_voyage:
                 return self.get_voyage_embeddings(model_name=model_name, api_key=api_key)
             return self.get_nvidia_embeddings(model_name=model_name, api_key=api_key, truncate=truncate)
 
         # When model_name is not provided, evaluate settings
+        if self.settings.is_fastembed_embedding:
+            target = getattr(self.settings, "fastembed_model", "BAAI/bge-small-en-v1.5")
+            if "bge" in self.settings.nvidia_embedding_model.lower():
+                target = self.settings.nvidia_embedding_model
+            return self.get_fastembed_embeddings(model_name=target)
+
         if self.settings.embedding_provider.lower() == "voyage":
             if "voyage" in self.settings.nvidia_embedding_model.lower():
                 target = self.settings.nvidia_embedding_model

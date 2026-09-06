@@ -44,12 +44,18 @@ def main():
             settings.voyage_api_key = args.embed_api_key
     if args.voyage_api_key:
         settings.voyage_api_key = args.voyage_api_key
+    if args.embed_model:
+        settings.nvidia_embedding_model = args.embed_model
+        if "voyage" in args.embed_model.lower():
+            settings.embedding_provider = "voyage"
+        elif "fastembed" in args.embed_model.lower() or "bge-" in args.embed_model.lower():
+            settings.embedding_provider = "fastembed"
 
     if not settings.effective_chat_api_key:
         logger.error("NVIDIA API Key for Chat LLM is not set in environment or CLI args.")
         sys.exit(1)
 
-    if (args.url or args.file) and not settings.effective_embedding_api_key:
+    if (args.url or args.file) and not settings.is_fastembed_embedding and not settings.effective_embedding_api_key:
         provider = "Voyage AI" if settings.is_voyage_embedding else "NVIDIA"
         logger.error(f"{provider} Embedding API Key is not set in environment or CLI args.")
         sys.exit(1)

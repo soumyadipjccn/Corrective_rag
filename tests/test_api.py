@@ -70,6 +70,22 @@ def test_config_voyage_update(client):
     assert data["has_embedding_key"] is True
 
 
+def test_config_fastembed_update(client):
+    post_res = client.post("/api/config", json={
+        "nvidia_embedding_model": "BAAI/bge-small-en-v1.5",
+        "embedding_provider": "fastembed",
+    })
+    assert post_res.status_code == 200
+    assert post_res.json()["status"] == "success"
+
+    get_res = client.get("/api/config")
+    assert get_res.status_code == 200
+    data = get_res.json()
+    assert data["nvidia_embedding_model"] == "BAAI/bge-small-en-v1.5"
+    assert data["is_fastembed_embedding"] is True
+    assert data["has_embedding_key"] is True
+
+
 def test_serialize_helpers(sample_documents):
     # Document serialization
     doc = sample_documents[0]

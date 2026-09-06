@@ -131,6 +131,7 @@ def get_config():
         "voyage_api_key": settings.voyage_api_key,
         "embedding_provider": settings.embedding_provider,
         "is_voyage_embedding": settings.is_voyage_embedding,
+        "is_fastembed_embedding": settings.is_fastembed_embedding,
         "has_nvidia_key": bool(settings.effective_chat_api_key and settings.effective_embedding_api_key),
         "has_chat_key": bool(settings.effective_chat_api_key),
         "has_embedding_key": bool(settings.effective_embedding_api_key),
@@ -142,6 +143,7 @@ def get_config():
         "nvidia_chat_model": settings.nvidia_chat_model,
         "nvidia_embedding_model": settings.nvidia_embedding_model,
         "voyage_embedding_model": settings.voyage_embedding_model,
+        "fastembed_model": settings.fastembed_model,
         "chunk_size": settings.chunk_size,
         "chunk_overlap": settings.chunk_overlap,
         "default_doc_url": settings.default_doc_url,
@@ -178,6 +180,13 @@ def update_config(req: ConfigUpdateRequest):
         s.nvidia_chat_model = req.nvidia_chat_model.strip()
     if req.nvidia_embedding_model is not None:
         s.nvidia_embedding_model = req.nvidia_embedding_model.strip()
+        if req.embedding_provider is None:
+            if "voyage" in s.nvidia_embedding_model.lower():
+                s.embedding_provider = "voyage"
+            elif "fastembed" in s.nvidia_embedding_model.lower() or "bge-" in s.nvidia_embedding_model.lower():
+                s.embedding_provider = "fastembed"
+            elif "nvidia" in s.nvidia_embedding_model.lower() or "nemotron" in s.nvidia_embedding_model.lower():
+                s.embedding_provider = "nvidia"
     if req.chunk_size is not None:
         s.chunk_size = req.chunk_size
     if req.chunk_overlap is not None:
@@ -199,7 +208,7 @@ def ingest_url(req: IngestUrlRequest):
     """Ingest and index a remote document URL into Qdrant."""
     global _current_ingested_source
     service = get_service()
-    if not service.settings.effective_embedding_api_key:
+    if not service.settings.is_fastembed_embedding and not service.settings.effective_embedding_api_key:
         provider = "Voyage AI" if service.settings.is_voyage_embedding else "NVIDIA"
         raise HTTPException(status_code=400, detail=f"{provider} Embedding API Key is required before ingestion.")
 
@@ -214,7 +223,7 @@ async def ingest_file(file: UploadFile = File(...)):
     """Ingest and index an uploaded document file (.pdf, .txt, .md) into Qdrant."""
     global _current_ingested_source
     service = get_service()
-    if not service.settings.effective_embedding_api_key:
+    if not service.settings.is_fastembed_embedding and not service.settings.effective_embedding_api_key:
         provider = "Voyage AI" if service.settings.is_voyage_embedding else "NVIDIA"
         raise HTTPException(status_code=400, detail=f"{provider} Embedding API Key is required before ingestion.")
 
