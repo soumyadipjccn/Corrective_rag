@@ -57,6 +57,10 @@ def get_service() -> CRAGService:
 
 class ConfigUpdateRequest(BaseModel):
     nvidia_api_key: Optional[str] = None
+    nvidia_chat_api_key: Optional[str] = None
+    nvidia_embedding_api_key: Optional[str] = None
+    voyage_api_key: Optional[str] = None
+    embedding_provider: Optional[str] = None
     tavily_api_key: Optional[str] = None
     qdrant_url: Optional[str] = None
     qdrant_api_key: Optional[str] = None
@@ -122,7 +126,14 @@ def get_config():
     settings = service.settings
     return {
         "nvidia_api_key": settings.nvidia_api_key,
-        "has_nvidia_key": bool(settings.nvidia_api_key),
+        "nvidia_chat_api_key": settings.nvidia_chat_api_key,
+        "nvidia_embedding_api_key": settings.nvidia_embedding_api_key,
+        "voyage_api_key": settings.voyage_api_key,
+        "embedding_provider": settings.embedding_provider,
+        "is_voyage_embedding": settings.is_voyage_embedding,
+        "has_nvidia_key": bool(settings.effective_chat_api_key and settings.effective_embedding_api_key),
+        "has_chat_key": bool(settings.effective_chat_api_key),
+        "has_embedding_key": bool(settings.effective_embedding_api_key),
         "tavily_api_key": settings.tavily_api_key,
         "has_tavily_key": bool(settings.tavily_api_key),
         "qdrant_url": settings.qdrant_url,
@@ -130,6 +141,7 @@ def get_config():
         "qdrant_collection_name": settings.qdrant_collection_name,
         "nvidia_chat_model": settings.nvidia_chat_model,
         "nvidia_embedding_model": settings.nvidia_embedding_model,
+        "voyage_embedding_model": settings.voyage_embedding_model,
         "chunk_size": settings.chunk_size,
         "chunk_overlap": settings.chunk_overlap,
         "default_doc_url": settings.default_doc_url,
@@ -148,6 +160,14 @@ def update_config(req: ConfigUpdateRequest):
 
     if req.nvidia_api_key is not None:
         s.nvidia_api_key = req.nvidia_api_key.strip()
+    if req.nvidia_chat_api_key is not None:
+        s.nvidia_chat_api_key = req.nvidia_chat_api_key.strip()
+    if req.nvidia_embedding_api_key is not None:
+        s.nvidia_embedding_api_key = req.nvidia_embedding_api_key.strip()
+    if req.voyage_api_key is not None:
+        s.voyage_api_key = req.voyage_api_key.strip()
+    if req.embedding_provider is not None:
+        s.embedding_provider = req.embedding_provider.strip()
     if req.tavily_api_key is not None:
         s.tavily_api_key = req.tavily_api_key.strip()
     if req.qdrant_url is not None:
@@ -170,7 +190,7 @@ def update_config(req: ConfigUpdateRequest):
     return {
         "status": "success",
         "message": "Configuration updated successfully",
-        "has_nvidia_key": bool(s.nvidia_api_key),
+        "has_nvidia_key": bool(s.effective_chat_api_key and s.effective_embedding_api_key),
     }
 
 
@@ -179,8 +199,9 @@ def ingest_url(req: IngestUrlRequest):
     """Ingest and index a remote document URL into Qdrant."""
     global _current_ingested_source
     service = get_service()
-    if not service.settings.nvidia_api_key:
-        raise HTTPException(status_code=400, detail="NVIDIA API Key is required before ingestion.")
+    if not service.settings.effective_embedding_api_key:
+        provider = "Voyage AI" if service.settings.is_voyage_embedding else "NVIDIA"
+        raise HTTPException(status_code=400, detail=f"{provider} Embedding API Key is required before ingestion.")
 
     res = service.ingest_url(req.url.strip())
     if res.status == "success":
@@ -193,8 +214,9 @@ async def ingest_file(file: UploadFile = File(...)):
     """Ingest and index an uploaded document file (.pdf, .txt, .md) into Qdrant."""
     global _current_ingested_source
     service = get_service()
-    if not service.settings.nvidia_api_key:
-        raise HTTPException(status_code=400, detail="NVIDIA API Key is required before ingestion.")
+    if not service.settings.effective_embedding_api_key:
+        provider = "Voyage AI" if service.settings.is_voyage_embedding else "NVIDIA"
+        raise HTTPException(status_code=400, detail=f"{provider} Embedding API Key is required before ingestion.")
 
     content = await file.read()
     filename = file.filename or "uploaded_document"
@@ -209,8 +231,8 @@ async def ingest_file(file: UploadFile = File(...)):
 def execute_query(req: QueryRequest):
     """Execute synchronous CRAG query."""
     service = get_service()
-    if not service.settings.nvidia_api_key:
-        raise HTTPException(status_code=400, detail="NVIDIA API Key is required to execute queries.")
+    if not service.settings.effective_chat_api_key:
+        raise HTTPException(status_code=400, detail="NVIDIA Chat API Key is required to execute queries.")
 
     steps = []
     final_generation = ""
@@ -243,9 +265,9 @@ def stream_query(question: str = Query(..., min_length=1)):
     Sends 'step', 'answer', 'error', and 'done' events.
     """
     service = get_service()
-    if not service.settings.nvidia_api_key:
+    if not service.settings.effective_chat_api_key:
         def error_gen():
-            payload = json.dumps({"error": "NVIDIA API Key is required to execute queries."})
+            payload = json.dumps({"error": "NVIDIA Chat API Key is required to execute queries."})
             yield f"event: error\ndata: {payload}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 

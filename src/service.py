@@ -30,6 +30,10 @@ class CRAGService:
         chat_model_name: Optional[str] = None,
         embedding_model_name: Optional[str] = None,
         nvidia_api_key: Optional[str] = None,
+        nvidia_chat_api_key: Optional[str] = None,
+        nvidia_embedding_api_key: Optional[str] = None,
+        voyage_api_key: Optional[str] = None,
+        embedding_provider: Optional[str] = None,
         tavily_api_key: Optional[str] = None,
         qdrant_url: Optional[str] = None,
         qdrant_api_key: Optional[str] = None,
@@ -37,17 +41,25 @@ class CRAGService:
         self.settings = settings or get_settings()
 
         # Overrides if provided
-        if nvidia_api_key:
+        if nvidia_api_key is not None:
             self.settings.nvidia_api_key = nvidia_api_key
-        if tavily_api_key:
+        if nvidia_chat_api_key is not None:
+            self.settings.nvidia_chat_api_key = nvidia_chat_api_key
+        if nvidia_embedding_api_key is not None:
+            self.settings.nvidia_embedding_api_key = nvidia_embedding_api_key
+        if voyage_api_key is not None:
+            self.settings.voyage_api_key = voyage_api_key
+        if embedding_provider is not None:
+            self.settings.embedding_provider = embedding_provider
+        if tavily_api_key is not None:
             self.settings.tavily_api_key = tavily_api_key
-        if qdrant_url:
+        if qdrant_url is not None:
             self.settings.qdrant_url = qdrant_url
-        if qdrant_api_key:
+        if qdrant_api_key is not None:
             self.settings.qdrant_api_key = qdrant_api_key
-        if chat_model_name:
+        if chat_model_name is not None:
             self.settings.nvidia_chat_model = chat_model_name
-        if embedding_model_name:
+        if embedding_model_name is not None:
             self.settings.nvidia_embedding_model = embedding_model_name
 
         self.client_factory = NVIDIAClientFactory(self.settings)

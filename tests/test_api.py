@@ -26,12 +26,16 @@ def test_config_get_and_update(client):
     data = get_res.json()
     assert "available_chat_models" in data
     assert "chunk_size" in data
+    assert "nvidia/llama-3.2-nv-embedqa-1b-v2" not in data.get("available_embedding_models", [])
 
-    # POST config update
+    # POST config update with custom models and distinct keys
     post_res = client.post("/api/config", json={
         "chunk_size": 600,
         "chunk_overlap": 150,
-        "nvidia_chat_model": "meta/llama-3.1-8b-instruct"
+        "nvidia_chat_model": "custom/enterprise-llama-model",
+        "nvidia_embedding_model": "custom/enterprise-embed-model",
+        "nvidia_chat_api_key": "nvapi-custom-chat-key",
+        "nvidia_embedding_api_key": "nvapi-custom-embed-key",
     })
     assert post_res.status_code == 200
     assert post_res.json()["status"] == "success"
@@ -41,7 +45,29 @@ def test_config_get_and_update(client):
     data_2 = get_res_2.json()
     assert data_2["chunk_size"] == 600
     assert data_2["chunk_overlap"] == 150
-    assert data_2["nvidia_chat_model"] == "meta/llama-3.1-8b-instruct"
+    assert data_2["nvidia_chat_model"] == "custom/enterprise-llama-model"
+    assert data_2["nvidia_embedding_model"] == "custom/enterprise-embed-model"
+    assert data_2["nvidia_chat_api_key"] == "nvapi-custom-chat-key"
+    assert data_2["nvidia_embedding_api_key"] == "nvapi-custom-embed-key"
+    assert data_2["has_chat_key"] is True
+    assert data_2["has_embedding_key"] is True
+
+
+def test_config_voyage_update(client):
+    post_res = client.post("/api/config", json={
+        "nvidia_embedding_model": "voyage-3",
+        "voyage_api_key": "pa-test-voyage-key",
+    })
+    assert post_res.status_code == 200
+    assert post_res.json()["status"] == "success"
+
+    get_res = client.get("/api/config")
+    assert get_res.status_code == 200
+    data = get_res.json()
+    assert data["nvidia_embedding_model"] == "voyage-3"
+    assert data["voyage_api_key"] == "pa-test-voyage-key"
+    assert data["is_voyage_embedding"] is True
+    assert data["has_embedding_key"] is True
 
 
 def test_serialize_helpers(sample_documents):

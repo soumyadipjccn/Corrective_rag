@@ -1,6 +1,6 @@
 # 🔄 Corrective RAG (CRAG) Agent - Industry-Grade Architecture
 
-An enterprise-grade, modular **Corrective Retrieval-Augmented Generation (CRAG)** agent built with **LangGraph**, **NVIDIA NIM Models**, **NVIDIA Embeddings**, and **Qdrant Vector Database**, featuring a modern **HTML5, CSS3, and JavaScript** web user interface powered by a **FastAPI** backend.
+An enterprise-grade, modular **Corrective Retrieval-Augmented Generation (CRAG)** agent built with **LangGraph**, **NVIDIA NIM Models**, **NVIDIA & Voyage AI Embeddings**, and **Qdrant Vector Database**, featuring a modern **HTML5, CSS3, and JavaScript** web user interface powered by a **FastAPI** backend.
 
 ---
 
@@ -110,8 +110,15 @@ Edit `.env`:
 NVIDIA_API_KEY=nvapi-your-key-here
 TAVILY_API_KEY=tvly-your-key-here
 QDRANT_URL=http://localhost:6333
+
+# Chat Model (NVIDIA NIM)
 NVIDIA_CHAT_MODEL=meta/llama-3.1-70b-instruct
-NVIDIA_EMBEDDING_MODEL=nvidia/nv-embedqa-e5-v5
+
+# Embedding Model (Voyage AI or NVIDIA NIM)
+# For Voyage AI:
+VOYAGE_API_KEY=pa-your-voyage-api-key-here
+NVIDIA_EMBEDDING_MODEL=voyage-3
+# Supported Voyage models: voyage-3, voyage-3-lite, voyage-code-3, voyage-finance-2, voyage-law-2, voyage-multilingual-2
 ```
 
 ---
@@ -133,7 +140,8 @@ uvicorn ui.server:app --host 0.0.0.0 --port 8000 --reload
 Open your browser and navigate to: **`http://localhost:8000`**
 
 #### Key Frontend Features:
-- **Configuration Drawer**: Manage NVIDIA / Tavily API keys, Qdrant cluster URLs, model selections, and chunking parameters in real time.
+- **Configuration Drawer & Custom Model Selector**: Choose from presets or select **`✨ Custom Model ID...`** to input any NVIDIA NIM LLM (e.g., `meta/llama-3.1-405b-instruct`, `deepseek-ai/deepseek-r1`, `qwen/qwen2.5-72b-instruct`) and custom Embedding model (e.g., `nvidia/nv-embedqa-mistral-7b-v2`, `baai/bge-m3`, `snowflake/arctic-embed-l`).
+- **Dynamic Dimension Detection**: Automatically computes embedding dimensions and manages Qdrant collection schemas dynamically for any custom embedding model.
 - **Document Ingestion Hub**: Index documents by entering remote URLs (PDF, web articles) or dragging and dropping local `.pdf`, `.txt`, and `.md` files.
 - **Visual LangGraph Pipeline Stepper**: Interactive visual execution graph tracking `Retrieve` ➔ `Grade Documents` ➔ `Transform Query` ➔ `Web Search` ➔ `Generate` in real time via Server-Sent Events (SSE).
 - **Inspectable State Accordions**: Expand each execution node to view retrieved chunks, relevance grading metrics, query rewrites, and raw state JSON.
@@ -145,8 +153,13 @@ Open your browser and navigate to: **`http://localhost:8000`**
 ### Option B: CLI Terminal Interface
 
 ```bash
-# Ingest a document and query directly from the terminal
-python main.py --url "https://arxiv.org/pdf/2307.09288.pdf" --query "What are the fine-tuning methods used in Llama 2?"
+# Ingest a document and query using Voyage AI embeddings directly from the terminal
+python main.py \
+  --url "https://arxiv.org/pdf/2307.09288.pdf" \
+  --chat-model "meta/llama-3.1-70b-instruct" \
+  --embed-model "voyage-3" \
+  --voyage-api-key "pa-your-voyage-api-key-here" \
+  --query "What are the fine-tuning methods used in Llama 2?"
 ```
 
 ---

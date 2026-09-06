@@ -17,11 +17,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveConfigBtn = document.getElementById('saveConfigBtn');
   
   const nvidiaApiKeyInput = document.getElementById('nvidiaApiKey');
+  const separateKeysToggle = document.getElementById('separateKeysToggle');
+  const separateKeysSection = document.getElementById('separateKeysSection');
+  const nvidiaChatApiKeyInput = document.getElementById('nvidiaChatApiKey');
+  const nvidiaEmbeddingApiKeyInput = document.getElementById('nvidiaEmbeddingApiKey');
   const tavilyApiKeyInput = document.getElementById('tavilyApiKey');
+  const voyageApiKeyInput = document.getElementById('voyageApiKey');
   const qdrantUrlInput = document.getElementById('qdrantUrl');
   const qdrantApiKeyInput = document.getElementById('qdrantApiKey');
   const chatModelSelect = document.getElementById('chatModelSelect');
+  const customChatModelWrapper = document.getElementById('customChatModelWrapper');
+  const customChatModelInput = document.getElementById('customChatModelInput');
   const embedModelSelect = document.getElementById('embedModelSelect');
+  const customEmbedModelWrapper = document.getElementById('customEmbedModelWrapper');
+  const customEmbedModelInput = document.getElementById('customEmbedModelInput');
   const chunkSizeInput = document.getElementById('chunkSize');
   const chunkSizeVal = document.getElementById('chunkSizeVal');
   const chunkOverlapInput = document.getElementById('chunkOverlap');
@@ -103,31 +112,82 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
 
       nvidiaApiKeyInput.value = data.nvidia_api_key || '';
+      nvidiaChatApiKeyInput.value = data.nvidia_chat_api_key || '';
+      nvidiaEmbeddingApiKeyInput.value = data.nvidia_embedding_api_key || '';
+
+      if (data.nvidia_chat_api_key || data.nvidia_embedding_api_key) {
+        separateKeysToggle.checked = true;
+        separateKeysSection.style.display = 'flex';
+      } else {
+        separateKeysToggle.checked = false;
+        separateKeysSection.style.display = 'none';
+      }
+
       tavilyApiKeyInput.value = data.tavily_api_key || '';
+      if (voyageApiKeyInput) {
+        voyageApiKeyInput.value = data.voyage_api_key || '';
+      }
       qdrantUrlInput.value = data.qdrant_url || 'http://localhost:6333';
       qdrantApiKeyInput.value = data.qdrant_api_key || '';
 
-      // Populate Model Select Options if provided
+      // Populate Chat Model Select Options
       if (data.available_chat_models && data.available_chat_models.length) {
         chatModelSelect.innerHTML = '';
+        let chatModelFound = false;
         data.available_chat_models.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m;
           opt.textContent = m;
-          if (m === data.nvidia_chat_model) opt.selected = true;
+          if (m === data.nvidia_chat_model) {
+            opt.selected = true;
+            chatModelFound = true;
+          }
           chatModelSelect.appendChild(opt);
         });
+
+        // Append Custom Option
+        const customOpt = document.createElement('option');
+        customOpt.value = '__custom__';
+        customOpt.textContent = '✨ Custom Model ID...';
+        chatModelSelect.appendChild(customOpt);
+
+        if (!chatModelFound && data.nvidia_chat_model) {
+          customOpt.selected = true;
+          customChatModelWrapper.style.display = 'block';
+          customChatModelInput.value = data.nvidia_chat_model;
+        } else {
+          customChatModelWrapper.style.display = 'none';
+        }
       }
 
+      // Populate Embedding Model Select Options
       if (data.available_embedding_models && data.available_embedding_models.length) {
         embedModelSelect.innerHTML = '';
+        let embedModelFound = false;
         data.available_embedding_models.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m;
           opt.textContent = m;
-          if (m === data.nvidia_embedding_model) opt.selected = true;
+          if (m === data.nvidia_embedding_model) {
+            opt.selected = true;
+            embedModelFound = true;
+          }
           embedModelSelect.appendChild(opt);
         });
+
+        // Append Custom Option
+        const customOpt = document.createElement('option');
+        customOpt.value = '__custom__';
+        customOpt.textContent = '✨ Custom Model ID...';
+        embedModelSelect.appendChild(customOpt);
+
+        if (!embedModelFound && data.nvidia_embedding_model) {
+          customOpt.selected = true;
+          customEmbedModelWrapper.style.display = 'block';
+          customEmbedModelInput.value = data.nvidia_embedding_model;
+        } else {
+          customEmbedModelWrapper.style.display = 'none';
+        }
       }
 
       if (data.chunk_size) {
@@ -153,16 +213,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function saveConfig() {
+    let selectedChatModel = chatModelSelect.value;
+    if (selectedChatModel === '__custom__') {
+      selectedChatModel = customChatModelInput.value.trim();
+      if (!selectedChatModel) {
+        showToast('Please enter a valid Custom Chat Model ID.', 'warning');
+        customChatModelInput.focus();
+        return;
+      }
+    }
+
+    let selectedEmbedModel = embedModelSelect.value;
+    if (selectedEmbedModel === '__custom__') {
+      selectedEmbedModel = customEmbedModelInput.value.trim();
+      if (!selectedEmbedModel) {
+        showToast('Please enter a valid Custom Embedding Model ID.', 'warning');
+        customEmbedModelInput.focus();
+        return;
+      }
+    }
+
     saveConfigBtn.disabled = true;
     saveConfigBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
     const payload = {
       nvidia_api_key: nvidiaApiKeyInput.value.trim(),
+      nvidia_chat_api_key: separateKeysToggle.checked ? nvidiaChatApiKeyInput.value.trim() : '',
+      nvidia_embedding_api_key: separateKeysToggle.checked ? nvidiaEmbeddingApiKeyInput.value.trim() : '',
+      voyage_api_key: voyageApiKeyInput ? voyageApiKeyInput.value.trim() : '',
       tavily_api_key: tavilyApiKeyInput.value.trim(),
       qdrant_url: qdrantUrlInput.value.trim(),
       qdrant_api_key: qdrantApiKeyInput.value.trim(),
-      nvidia_chat_model: chatModelSelect.value,
-      nvidia_embedding_model: embedModelSelect.value,
+      nvidia_chat_model: selectedChatModel,
+      nvidia_embedding_model: selectedEmbedModel,
       chunk_size: parseInt(chunkSizeInput.value, 10),
       chunk_overlap: parseInt(chunkOverlapInput.value, 10),
     };
@@ -240,6 +323,50 @@ document.addEventListener('DOMContentLoaded', () => {
   sidebarBackdrop?.addEventListener('click', closeSidebar);
   openSettingsBtn?.addEventListener('click', openSidebar);
   saveConfigBtn.addEventListener('click', saveConfig);
+
+  // Separate API Keys Toggle
+  separateKeysToggle.addEventListener('change', () => {
+    if (separateKeysToggle.checked) {
+      separateKeysSection.style.display = 'flex';
+    } else {
+      separateKeysSection.style.display = 'none';
+    }
+  });
+
+  // Custom Model Dropdown Toggles
+  chatModelSelect.addEventListener('change', () => {
+    if (chatModelSelect.value === '__custom__') {
+      customChatModelWrapper.style.display = 'block';
+      customChatModelInput.focus();
+    } else {
+      customChatModelWrapper.style.display = 'none';
+    }
+  });
+
+  embedModelSelect.addEventListener('change', () => {
+    if (embedModelSelect.value === '__custom__') {
+      customEmbedModelWrapper.style.display = 'block';
+      customEmbedModelInput.focus();
+    } else {
+      customEmbedModelWrapper.style.display = 'none';
+    }
+
+    const isVoyage = embedModelSelect.value.toLowerCase().includes('voyage');
+    const voyageGroup = document.getElementById('voyageApiKeyGroup');
+    if (voyageGroup) {
+      if (isVoyage) {
+        voyageGroup.style.background = 'rgba(99, 102, 241, 0.08)';
+        voyageGroup.style.borderRadius = '8px';
+        voyageGroup.style.padding = '8px 12px';
+        voyageGroup.style.border = '1px solid var(--accent-primary, #6366f1)';
+      } else {
+        voyageGroup.style.background = 'transparent';
+        voyageGroup.style.borderRadius = '0';
+        voyageGroup.style.padding = '0';
+        voyageGroup.style.border = 'none';
+      }
+    }
+  });
 
   // Sliders synchronization
   chunkSizeInput.addEventListener('input', (e) => {

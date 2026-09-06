@@ -51,7 +51,7 @@
           <div class="form-group">
             <label for="nvidiaApiKey">
               NVIDIA API Key <span class="required">*</span>
-              <span class="tooltip-icon" title="Required. Starts with nvapi-..."><i class="fa-solid fa-circle-question"></i></span>
+              <span class="tooltip-icon" title="Required. Used for both Chat LLM and Embeddings by default, or as a fallback."><i class="fa-solid fa-circle-question"></i></span>
             </label>
             <div class="input-password-wrapper">
               <input type="password" id="nvidiaApiKey" placeholder="nvapi-..." autocomplete="off">
@@ -59,7 +59,44 @@
                 <i class="fa-regular fa-eye"></i>
               </button>
             </div>
-            <span class="input-hint">Used for NVIDIA NIM Chat & Embeddings</span>
+            <span class="input-hint">Default shared key for NVIDIA NIM Chat & Embeddings</span>
+          </div>
+
+          <!-- Option for separate Chat & Embedding API Keys -->
+          <div class="form-group-checkbox">
+            <label class="checkbox-label" for="separateKeysToggle">
+              <input type="checkbox" id="separateKeysToggle">
+              <span>Use different keys for LLM & Embeddings</span>
+            </label>
+          </div>
+
+          <!-- Separate Key Override Fields -->
+          <div id="separateKeysSection" class="separate-keys-wrapper" style="display: none;">
+            <div class="form-group">
+              <label for="nvidiaChatApiKey">
+                Chat LLM API Key (Override)
+                <span class="tooltip-icon" title="Optional distinct key for Chat LLM"><i class="fa-solid fa-circle-question"></i></span>
+              </label>
+              <div class="input-password-wrapper">
+                <input type="password" id="nvidiaChatApiKey" placeholder="nvapi-chat-..." autocomplete="off">
+                <button type="button" class="btn-toggle-pw" data-target="nvidiaChatApiKey">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="nvidiaEmbeddingApiKey">
+                Embedding Model API Key (Override)
+                <span class="tooltip-icon" title="Optional distinct key for Embedding model"><i class="fa-solid fa-circle-question"></i></span>
+              </label>
+              <div class="input-password-wrapper">
+                <input type="password" id="nvidiaEmbeddingApiKey" placeholder="nvapi-embed-..." autocomplete="off">
+                <button type="button" class="btn-toggle-pw" data-target="nvidiaEmbeddingApiKey">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">
@@ -74,6 +111,20 @@
               </button>
             </div>
             <span class="input-hint">Enables online web search fallback</span>
+          </div>
+
+          <div class="form-group" id="voyageApiKeyGroup">
+            <label for="voyageApiKey">
+              Voyage AI API Key
+              <span class="tooltip-icon" title="Required when using Voyage AI embedding models (e.g. voyage-3, voyage-code-3)"><i class="fa-solid fa-circle-question"></i></span>
+            </label>
+            <div class="input-password-wrapper">
+              <input type="password" id="voyageApiKey" placeholder="pa-..." autocomplete="off">
+              <button type="button" class="btn-toggle-pw" data-target="voyageApiKey">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+            <span class="input-hint">Used when a Voyage AI embedding model is selected</span>
           </div>
         </section>
 
@@ -108,24 +159,42 @@
           </div>
 
           <div class="form-group">
-            <label for="chatModelSelect">Chat LLM</label>
+            <label for="chatModelSelect">
+              Chat LLM
+              <span class="tooltip-icon" title="Select a preset or choose Custom to enter any NVIDIA NIM chat model"><i class="fa-solid fa-circle-question"></i></span>
+            </label>
             <select id="chatModelSelect" class="form-select">
               <option value="meta/llama-3.1-70b-instruct">meta/llama-3.1-70b-instruct</option>
               <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct</option>
               <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct</option>
               <option value="meta/llama-3.1-8b-instruct">meta/llama-3.1-8b-instruct</option>
               <option value="mistralai/mixtral-8x7b-instruct-v0.1">mistralai/mixtral-8x7b-instruct-v0.1</option>
+              <option value="deepseek-ai/deepseek-r1">deepseek-ai/deepseek-r1</option>
+              <option value="qwen/qwen2.5-72b-instruct">qwen/qwen2.5-72b-instruct</option>
+              <option value="__custom__">✨ Custom Model ID...</option>
             </select>
+            <div id="customChatModelWrapper" class="custom-model-wrapper" style="display: none; margin-top: 8px;">
+              <input type="text" id="customChatModelInput" placeholder="e.g. meta/llama-3.1-405b-instruct" autocomplete="off">
+              <span class="input-hint">Enter custom NVIDIA NIM Chat Model ID</span>
+            </div>
           </div>
 
           <div class="form-group">
-            <label for="embedModelSelect">Embedding Model</label>
+            <label for="embedModelSelect">
+              Embedding Model
+              <span class="tooltip-icon" title="Select a preset or choose Custom to enter any NVIDIA NIM embedding model"><i class="fa-solid fa-circle-question"></i></span>
+            </label>
             <select id="embedModelSelect" class="form-select">
               <option value="nvidia/nv-embedqa-e5-v5">nvidia/nv-embedqa-e5-v5</option>
               <option value="baai/bge-m3">baai/bge-m3</option>
               <option value="snowflake/arctic-embed-l">snowflake/arctic-embed-l</option>
-              <option value="nvidia/llama-3.2-nv-embedqa-1b-v2">nvidia/llama-3.2-nv-embedqa-1b-v2</option>
+              <option value="nvidia/nv-embedqa-mistral-7b-v2">nvidia/nv-embedqa-mistral-7b-v2</option>
+              <option value="__custom__">✨ Custom Model ID...</option>
             </select>
+            <div id="customEmbedModelWrapper" class="custom-model-wrapper" style="display: none; margin-top: 8px;">
+              <input type="text" id="customEmbedModelInput" placeholder="e.g. nvidia/nv-embedqa-mistral-7b-v2" autocomplete="off">
+              <span class="input-hint">Enter custom NVIDIA NIM Embedding Model ID</span>
+            </div>
           </div>
         </section>
 

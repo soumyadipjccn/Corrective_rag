@@ -21,8 +21,12 @@ def parse_args():
     parser.add_argument("--url", type=str, help="Document URL to ingest (PDF or Web Page)")
     parser.add_argument("--file", type=str, help="Local file path to ingest (.pdf, .txt, .md)")
     parser.add_argument("--query", type=str, required=True, help="Question to ask the CRAG agent")
-    parser.add_argument("--chat-model", type=str, default=None, help="NVIDIA chat model override")
-    parser.add_argument("--embed-model", type=str, default=None, help="NVIDIA embedding model override")
+    parser.add_argument("--chat-model", type=str, default=None, help="Custom or preset NVIDIA chat model ID (e.g. meta/llama-3.1-70b-instruct, deepseek-ai/deepseek-r1)")
+    parser.add_argument("--embed-model", type=str, default=None, help="Custom or preset embedding model ID (e.g. voyage-3, nvidia/nv-embedqa-e5-v5, baai/bge-m3)")
+    parser.add_argument("--nvidia-api-key", type=str, default=None, help="General NVIDIA API key override")
+    parser.add_argument("--chat-api-key", type=str, default=None, help="Distinct NVIDIA API key override for Chat LLM")
+    parser.add_argument("--embed-api-key", type=str, default=None, help="Distinct API key override for Embedding model")
+    parser.add_argument("--voyage-api-key", type=str, default=None, help="Voyage AI API key override for embeddings")
     return parser.parse_args()
 
 
@@ -30,8 +34,24 @@ def main():
     args = parse_args()
     settings = get_settings()
 
-    if not settings.nvidia_api_key:
-        logger.error("NVIDIA_API_KEY is not set in environment or .env file.")
+    if args.nvidia_api_key:
+        settings.nvidia_api_key = args.nvidia_api_key
+    if args.chat_api_key:
+        settings.nvidia_chat_api_key = args.chat_api_key
+    if args.embed_api_key:
+        settings.nvidia_embedding_api_key = args.embed_api_key
+        if args.embed_model and "voyage" in args.embed_model.lower():
+            settings.voyage_api_key = args.embed_api_key
+    if args.voyage_api_key:
+        settings.voyage_api_key = args.voyage_api_key
+
+    if not settings.effective_chat_api_key:
+        logger.error("NVIDIA API Key for Chat LLM is not set in environment or CLI args.")
+        sys.exit(1)
+
+    if (args.url or args.file) and not settings.effective_embedding_api_key:
+        provider = "Voyage AI" if settings.is_voyage_embedding else "NVIDIA"
+        logger.error(f"{provider} Embedding API Key is not set in environment or CLI args.")
         sys.exit(1)
 
     service = CRAGService(
